@@ -1,0 +1,62 @@
+version: '3'
+
+networks:
+  backend:
+volumes:
+  mysql:
+
+services:
+  web:
+    image: nginx:1.25-alpine3.17
+    ports:
+      - "${WEB_PORT}:80"
+    volumes:
+      - ./:/www:rw
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/logs/nginx:/var/logs/nginx:rw
+    depends_on:
+      - app
+    networks:
+      - backend
+      - frontend
+  app:
+    image: idomi27/laravel
+    build: 
+      context: .
+      dockerfile: docker/php/Dockerfile
+    volumes:
+      - ./:/www:rw
+      - /www/vendor
+      - ../.env:/.env
+    networks:
+      - backend
+  db:
+    image: mysql:8.0.30
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MYSQL_USER=${DB_USERNAME}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=${DB_DATABASE}
+      - TZ="${TZ}"
+    volumes:
+      - "mysql:/var/lib/mysql:rw"
+    networks:
+      - backend
+  phpmyadmin:
+    image: phpmyadmin:5.1-apache
+    depends_on:
+      - db
+    environment:
+      # - PMA_ARBITRARY=${PMA_ARBITRARY}
+      - PMA_HOST=${DB_HOST}
+      - PMA_PORT=${DB_PORT}
+      - PMA_USER=${DB_USERNAME}
+      - PMA_PASSWORD=${DB_PASSWORD}
+      - PMA_ABSOLUTE_URI=${PMA_ABSOLUTE_URI}
+    ports:
+      - "${PMA_PORT}:80"
+    networks:
+      - backend
+      - frontend
